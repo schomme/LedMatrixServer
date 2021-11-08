@@ -10,11 +10,10 @@
 
 const char* ssid = STASSID;
 const char* password = STAPSK;
-
 const char* mdnsName = "Ledmatrix";
 
-char* argName = "text";
-char* displayText = "Hello World";
+String argName = "text";
+String displayText = "Hello World";
 
 ESP8266WebServer server(80);
 
@@ -47,6 +46,15 @@ String CreateLink(String endPoint, String linkText){
 String AddLineBreak(){
   return "<br>";
 }
+String GetArgValue(String key){
+  for (uint8_t i = 0; i < server.args(); i++) {
+    if(server.argName(i) == key){
+      return server.arg(i);
+    }
+  }
+  return "";
+}
+
 /*
 ================================
          ENDPOINTS
@@ -83,12 +91,13 @@ void handleNotFound() {
   digitalWrite(LED_BUILTIN, 0);
 }
 void handleDisplay(){
-  if(server.args() <= 0){
-    server.send(400,"text/plain" ,"Missing Argument\n" + server.responseCodeToString(400));
+  if(server.args() <= 0 || !server.hasArg(argName)){
+    server.send(400,"text/plain" ,"Missing Argument \"text\"\n" + server.responseCodeToString(400));
     return;
   }
-  
-  server.send(200, "text/plain", ArgsToString());
+  displayText = GetArgValue(argName);
+
+  server.send(200, "text/plain", "Value is set to \""+displayText+"\"\n");
 }
 void handleInput(){
   server.send(200,"text/html","<form action=\"/display\"><label for=\"fname\">Text</label><br><input type=\"text\" id=\"text\" name=\"text\" value=\"Hello World\"><br><input type=\"submit\" value=\"Submit\"></form>");
@@ -145,7 +154,7 @@ void setup(void) {
   setupWifi();
   setupMDNS();
   setupServer();
-
+  
   server.begin();
   Serial.println("HTTP server started");
 }
