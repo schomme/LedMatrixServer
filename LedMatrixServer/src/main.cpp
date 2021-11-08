@@ -13,15 +13,59 @@ const char* password = STAPSK;
 
 const char* mdnsName = "Ledmatrix";
 
+char* argName = "text";
+char* displayText = "Hello World";
+
 ESP8266WebServer server(80);
 
+/*
+================================
+         Helper Methods
+================================
+*/
+String ArgsToString(bool linebreak = true){
+  String message = "";
+  for (uint8_t i = 0; i < server.args(); i++) {
+    message += " " + server.argName(i) + ": " + server.arg(i);
+    message += linebreak ? "\n" : " ";
+  }
+  return message;
+}
+String CreateLink(String endPoint, String linkText){
 
+  String root = "http://";
+  root += mdnsName;
+
+  String s = "<a href=\"";
+  s += root;
+  s += endPoint;
+  s += "\">";
+  s += linkText;
+  s += "</a>";
+  return s;
+}
+String AddLineBreak(){
+  return "<br>";
+}
+/*
+================================
+         ENDPOINTS
+================================
+*/
 void handleRoot() {
   digitalWrite(LED_BUILTIN, 1);
-  server.send(200, "text/plain", "hello from esp8266!\r\n");
+
+  String message = "Current Endpoints";
+  message += AddLineBreak();
+  message += CreateLink("/", "This Page");
+  message += AddLineBreak();
+  message += CreateLink("/display", "Sets the display variable");
+  message += AddLineBreak();
+  message += CreateLink("/input", "Input Form");
+
+  server.send(200, "text/html", message);
   digitalWrite(LED_BUILTIN, 0);
 }
-
 void handleNotFound() {
   digitalWrite(LED_BUILTIN, 1);
   String message = "File Not Found\n\n";
@@ -32,12 +76,28 @@ void handleNotFound() {
   message += "\nArguments: ";
   message += server.args();
   message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
+  
+  message += ArgsToString();
+
   server.send(404, "text/plain", message);
   digitalWrite(LED_BUILTIN, 0);
 }
+void handleDisplay(){
+  if(server.args() <= 0){
+    server.send(400,"text/plain" ,"Missing Argument\n" + server.responseCodeToString(400));
+    return;
+  }
+  
+  server.send(200, "text/plain", ArgsToString());
+}
+void handleInput(){
+  server.send(200,"text/html","<form action=\"/display\"><label for=\"fname\">Text</label><br><input type=\"text\" id=\"text\" name=\"text\" value=\"Hello World\"><br><input type=\"submit\" value=\"Submit\"></form>");
+}
+/*
+================================
+         SETUP METHODS
+================================
+*/
 
 void setupWifi(){
   WiFi.mode(WIFI_STA);
@@ -67,11 +127,16 @@ void setupMDNS(){
 
 void setupServer(){
   server.on("/", handleRoot);
-  server.on("/inline", []() {
-    server.send(200, "text/plain", "this works as well");
-  });
+  server.on("/display", handleDisplay);
+  server.on("/input", handleInput);
   server.onNotFound(handleNotFound);
 }
+
+/*
+================================
+         MAIN CODE
+================================
+*/
 
 void setup(void) {
   pinMode(LED_BUILTIN, OUTPUT);
