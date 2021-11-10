@@ -11,10 +11,11 @@
 #include <ESP8266mDNS.h>
 #include <WiFiManager.h>
 
-
 //  LED Matrix Libraries
 #include <PxMatrix.h>
 #include <Wire.h>
+
+#include <../lib/EndPoint/src/EndPoint.h>
 
 /*
 ======================================
@@ -26,6 +27,11 @@
 ESP8266WebServer server(80);
 WiFiManager wifiManager;
 
+#define HTML_HEAD "<!DOCTYPE html><html lang=\"en\"><head><title>LEDMATRIX</title><style> .c{text-align:center;}div,input{padding:5px;font-size:1em;}input{width:95%;}body{text-align:center;font-family:verdana;}button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float:right;width:64px;text-align:right;} .l{background:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\")no-repeat left center;background-size:1em;}</style></head><body><div style=\"text-align:left;display:inline-block;min-width:260px;\">"
+#define HTML_BOTTOM "</div></body></html>"
+#define HTML_INPUT "<input id=\"{id}\" placeholder=\"{placeholder}\" type=\"{type}\" min=\"{min}\" max=\"{max}\"/>"
+#define HTML_LABEL "<label for=\"{id}\">{name}<label/>"
+#define HTML_BR "<br>"
 #define WIFISSID "LEDSETUP"
 #define MDNSNAME "LEDMATRIX"
 
@@ -82,22 +88,6 @@ String ArgsToString(bool linebreak = true){
   }
   return message;
 }
-String CreateLink(String endPoint, String linkText){
-
-  String root = "http://";
-  root += MDNSNAME;
-
-  String s = "<a href=\"";
-  s += root;
-  s += endPoint;
-  s += "\">";
-  s += linkText;
-  s += "</a>";
-  return s;
-}
-String AddLineBreak(){
-  return "<br>";
-}
 String GetArgValue(String key){
   for (uint8_t i = 0; i < server.args(); i++) {
     if(server.argName(i) == key){
@@ -149,30 +139,71 @@ bool isNumeric(String value){
   return true;
 }
 String CreateNotSetError(String key, String value){
-      String errMsg = "Could net set parameter '";
-      errMsg += key;
-      errMsg += "' to '";
-      errMsg += value;
-      errMsg += "'.\n";
-      return errMsg;
+  String errMsg = "Could net set parameter '";
+  errMsg += key;
+  errMsg += "' to '";
+  errMsg += value;
+  errMsg += "'.\n";
+  return errMsg;
+}
+String CreateSetMsg(String key, String value){
+  String msg = "Parameter '";
+  msg += key;
+  msg += "' is set to '";
+  msg += value;
+  msg += "'.\n";
+  return msg;
 }
 uint8_t MapColor(int c){
   return c >= 255 ? 255 : (c <= 0 ? 0 : c);
+}
+String CreateFormElement(String name,String id, String type, String placeholder, String min, String max){
+  String result = HTML_LABEL;
+  result.replace("{name}",name);
+  result += HTML_INPUT;
+  result.replace("{id}",id);
+  result.replace("{type}",type);
+  result.replace("{placeholder}",placeholder);
+  result.replace("{min}",min);
+  result.replace("{max}",max);
+  result += HTML_BR;
+  return result;
 }
 /*
 ================================
          ENDPOINTS
 ================================
 */
+void handleRoot(); //declared to use in EndPoints. Definition below
+void handleSet();
+void handleInput();
+void handleHelp();
+void handleResetWifi();
+
+EndPoint ep_root("/", "Home", handleRoot, "Home site.");
+EndPoint ep_set("/set", "Value Setter", handleSet, ".....................TODO.......");
+EndPoint ep_input("/input", "Input", handleInput, "........................TODO.......");
+EndPoint ep_help("/help", "Help", handleHelp, "........................TODO.......");
+EndPoint ep_wifi("/resetwifi", "ResetWifi", handleResetWifi, "........................TODO.......");
+
+/*
+================================
+         EndPoints
+================================
+*/
 
 void handleRoot() {
-  String message = "Current Endpoints";
-  message += AddLineBreak();
-  message += CreateLink("/", "This Page");
-  message += AddLineBreak();
-  message += CreateLink("/input", "Input Form");
+  String m = "";
+  m += HTML_HEAD;
 
-  server.send(200, "text/html", message);
+  m += ep_root.CreateLink() + HTML_BR;
+  m += ep_set.CreateLink() + HTML_BR;
+  m += ep_input.CreateLink() + HTML_BR;
+  m += ep_help.CreateLink() + HTML_BR;
+  m += HTML_BR + ep_wifi.CreateLink();
+
+  m += HTML_BOTTOM;
+  server.send(200, "text/html", m);
 }
 void handleNotFound() {
   digitalWrite(LED_BUILTIN, 1);
@@ -191,7 +222,22 @@ void handleNotFound() {
   digitalWrite(LED_BUILTIN, 0);
 }
 void handleInput(){
-  server.send(200,"text/html","<form action=\"/display\"><label for=\"fname\">Text</label><br><input type=\"text\" id=\"text\" name=\"text\" value=\"Hello World\"><br><input type=\"submit\" value=\"Submit\"></form>");
+  String msg = HTML_HEAD;
+  msg += "<form action=\"/set\" method=\"get\">";
+  msg += CreateFormElement("Text", ARG_TEXT, "text", TEXT_VALUE,"","");
+  msg += CreateFormElement("Size", ARG_TEXT_SIZE, "number", "1", "1", "");
+  msg += CreateFormElement("Wrap", ARG_WRAP, "checkbox","","","");
+  msg += CreateFormElement("Scroll", ARG_SCROLL, "checkbox","","","");
+  msg += CreateFormElement("Red", ARG_COLOR_R, "number","255","0","0");
+  msg += CreateFormElement("Green", ARG_COLOR_G, "number","0","0","0");
+  msg += CreateFormElement("Blue", ARG_COLOR_B, "number","0","0","0");
+  msg += CreateFormElement("Blue", ARG_COLOR_B, "number","0","0","0");
+  msg += CreateFormElement("X Position", ARG_XPOS, "number","0","0","0");
+  msg += CreateFormElement("Y Position", ARG_YPOS, "number","0","0","0");
+  msg += HTML_BR;
+  msg += CreateFormElement("Sumbit", "submit", "submit" , "", "", "");
+  msg += HTML_BOTTOM;
+  server.send(200,"text/html", msg);
 }
 void handleSet(){
     if(server.args() <= 0){
@@ -199,18 +245,20 @@ void handleSet(){
     return;
   }
 
-  String errMsg = "";
+  String result = "";
+  
   if(server.hasArg(ARG_TEXT)){
     TEXT_VALUE = GetArgValue(ARG_TEXT);
+    result += CreateSetMsg(ARG_TEXT, TEXT_VALUE); 
   }
   if(server.hasArg(ARG_SCROLL)){
     String value = GetArgValue(ARG_SCROLL); 
     if(isNumeric(value)){
       int number = value.toInt();
       SCROLL_VALUE = number >= 1 ? 1 : 0;
-      
+      result += CreateSetMsg(ARG_SCROLL, String(SCROLL_VALUE)); 
     }else{
-      errMsg = CreateNotSetError(ARG_SCROLL, value);
+      result += CreateNotSetError(ARG_SCROLL, value);
     }
   }
   if(server.hasArg(ARG_TEXT_SIZE)){
@@ -218,8 +266,10 @@ void handleSet(){
     if(isNumeric(value)){
       int number = value.toInt();
       SIZE_VALUE = number <= 1 ? 1 : number;
+      result += CreateSetMsg(ARG_TEXT_SIZE, String(SIZE_VALUE)); 
+
     }else{
-      errMsg += CreateNotSetError(ARG_TEXT_SIZE, value);
+      result += CreateNotSetError(ARG_TEXT_SIZE, value);
     }
   }
   if(server.hasArg(ARG_COLOR_R)){
@@ -227,8 +277,10 @@ void handleSet(){
     if(isNumeric(value)){
       int number = value.toInt();
       COLOR_R_VALUE = MapColor(number);
+      result += CreateSetMsg(ARG_COLOR_R, String(COLOR_R_VALUE)); 
+
     }else{
-      errMsg += CreateNotSetError(ARG_COLOR_R, value);
+      result += CreateNotSetError(ARG_COLOR_R, value);
     }
   }
   if(server.hasArg(ARG_COLOR_G)){
@@ -236,8 +288,9 @@ void handleSet(){
     if(isNumeric(value)){
       int number = value.toInt();
       COLOR_G_VALUE = MapColor(number);
+      result += CreateSetMsg(ARG_COLOR_G, String(COLOR_G_VALUE)); 
     }else{
-      errMsg += CreateNotSetError(ARG_COLOR_G, value);
+      result += CreateNotSetError(ARG_COLOR_G, value);
     }
   }
   if(server.hasArg(ARG_COLOR_B)){
@@ -245,8 +298,10 @@ void handleSet(){
     if(isNumeric(value)){
       int number = value.toInt();
       COLOR_B_VALUE = MapColor(number);
+      result += CreateSetMsg(ARG_COLOR_B, String(COLOR_B_VALUE)); 
+
     }else{
-      errMsg += CreateNotSetError(ARG_COLOR_B, value);
+      result += CreateNotSetError(ARG_COLOR_B, value);
     }
   }
   if(server.hasArg(ARG_XPOS)){
@@ -254,8 +309,9 @@ void handleSet(){
     if(isNumeric(value)){
       int number = value.toInt();
       XPOS_VALUE = number;
+      result += CreateSetMsg(ARG_XPOS, String(XPOS_VALUE)); 
     }else{
-      errMsg += CreateNotSetError(ARG_XPOS, value);
+      result += CreateNotSetError(ARG_XPOS, value);
     }
   }
   if(server.hasArg(ARG_YPOS)){
@@ -263,8 +319,10 @@ void handleSet(){
     if(isNumeric(value)){
       int number = value.toInt();
       YPOS_VALUE = number;
+      result += CreateSetMsg(ARG_YPOS, String(YPOS_VALUE)); 
+
     }else{
-      errMsg += CreateNotSetError(ARG_YPOS, value);
+      result += CreateNotSetError(ARG_YPOS, value);
     }
   }
   if(server.hasArg(ARG_WRAP)){
@@ -272,17 +330,13 @@ void handleSet(){
     if(isNumeric(value)){
       int number = value.toInt();
       WRAP_VALUE = number >= 1;
+      result += CreateSetMsg(ARG_WRAP, String(WRAP_VALUE)); 
     }else{
-      errMsg += CreateNotSetError(ARG_WRAP, value);
+      result += CreateNotSetError(ARG_WRAP, value);
     }
   }
-
-  if(errMsg.length() > 0){
-    server.send(400, "text/plain", errMsg + "\n" + server.responseCodeToString(400));
-    return;
-  }
   
-  server.send(200, "text/plain", "All values has successfully been set!");
+  server.send(200, "text/plain", "Result\n" + result);
 }
 void handleHelp(){
   server.send(200, "text/plain", "this is the help page.\n comming soon...");
@@ -300,12 +354,9 @@ void handleResetWifi(){
 ================================
 */
 
-
 void setupWifi(){
-  wifiManager.setClass("invert"); // dark theme
   wifiManager.autoConnect(WIFISSID);
 }
-
 void setupMDNS(){
   if (MDNS.begin(MDNSNAME)) {
     Serial.println("MDNS responder started");
@@ -320,19 +371,18 @@ void setupMDNS(){
     display_text();
   }
 }
-
 void setupServer(){
-  server.on("/", handleRoot);
-  server.on("/input", handleInput);
-  server.on("/set", handleSet);
-  server.on("/help", handleHelp);
-  server.on("/resetwifi", handleResetWifi);
+  
   server.onNotFound(handleNotFound);
+  server.on(ep_root.path, ep_root.handler);
+  server.on(ep_set.path, ep_set.handler);
+  server.on(ep_input.path, ep_input.handler);
+  server.on(ep_help.path, ep_help.handler);
+  server.on(ep_wifi.path, ep_wifi.handler);
 
   Serial.println("HTTP server started");
   server.begin();
 }
-
 void setupDisplay(){
 
   display.begin(16);
