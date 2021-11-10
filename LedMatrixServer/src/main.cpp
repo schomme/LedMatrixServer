@@ -29,8 +29,8 @@ WiFiManager wifiManager;
 
 #define HTML_HEAD "<!DOCTYPE html><html lang=\"en\"><head><title>LEDMATRIX</title><style> .c{text-align:center;}div,input{padding:5px;font-size:1em;}input{width:95%;}body{text-align:center;font-family:verdana;}button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float:right;width:64px;text-align:right;} .l{background:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\")no-repeat left center;background-size:1em;}</style></head><body><div style=\"text-align:left;display:inline-block;min-width:260px;\">"
 #define HTML_BOTTOM "</div></body></html>"
-#define HTML_INPUT "<input id=\"{id}\" placeholder=\"{placeholder}\" type=\"{type}\" min=\"{min}\" max=\"{max}\"/>"
-#define HTML_LABEL "<label for=\"{id}\">{name}<label/>"
+#define HTML_INPUT "<input id=\"{id}\" name=\"{id}\" type=\"{type}\" min=\"{min}\" max=\"{max}\" value=\"{value}\" />"
+#define HTML_LABEL "<label for=\"{id}\">{name}</label>"
 #define HTML_BR "<br>"
 #define WIFISSID "LEDSETUP"
 #define MDNSNAME "LEDMATRIX"
@@ -157,17 +157,23 @@ String CreateSetMsg(String key, String value){
 uint8_t MapColor(int c){
   return c >= 255 ? 255 : (c <= 0 ? 0 : c);
 }
-String CreateFormElement(String name,String id, String type, String placeholder, String min, String max){
+String CreateFormElement(String name,String id, String type, String value, String min, String max){
   String result = HTML_LABEL;
   result.replace("{name}",name);
   result += HTML_INPUT;
   result.replace("{id}",id);
   result.replace("{type}",type);
-  result.replace("{placeholder}",placeholder);
+  result.replace("{value}", value);
   result.replace("{min}",min);
   result.replace("{max}",max);
   result += HTML_BR;
   return result;
+}
+void ResetWifi(){
+  wifiManager.resetSettings();
+  wifiManager.erase();
+  delay(3000);
+  ESP.restart();
 }
 void CheckResetButton(){
   long start = millis();
@@ -180,12 +186,7 @@ void CheckResetButton(){
     }  
   }
 }
-void ResetWifi(){
-  wifiManager.resetSettings();
-  wifiManager.erase();
-  delay(3000);
-  ESP.restart();
-}
+
 /*
 ================================
          ENDPOINTS
@@ -242,17 +243,17 @@ void handleInput(){
   String msg = HTML_HEAD;
   msg += "<form action=\"/set\" method=\"get\">";
   msg += CreateFormElement("Text", ARG_TEXT, "text", TEXT_VALUE,"","");
-  msg += CreateFormElement("Size", ARG_TEXT_SIZE, "number", "1", "1", "");
-  msg += CreateFormElement("Wrap", ARG_WRAP, "checkbox","","","");
-  msg += CreateFormElement("Scroll", ARG_SCROLL, "checkbox","","","");
-  msg += CreateFormElement("Red", ARG_COLOR_R, "number","255","0","0");
-  msg += CreateFormElement("Green", ARG_COLOR_G, "number","0","0","0");
-  msg += CreateFormElement("Blue", ARG_COLOR_B, "number","0","0","0");
-  msg += CreateFormElement("Blue", ARG_COLOR_B, "number","0","0","0");
-  msg += CreateFormElement("X Position", ARG_XPOS, "number","0","0","0");
-  msg += CreateFormElement("Y Position", ARG_YPOS, "number","0","0","0");
+  msg += CreateFormElement("Size", ARG_TEXT_SIZE, "number", String(SIZE_VALUE), "1", "");
+  msg += CreateFormElement("Wrap", ARG_WRAP, "checkbox","1","","");
+  msg += CreateFormElement("Scroll", ARG_SCROLL, "checkbox","1","","");
+  msg += CreateFormElement("Red", ARG_COLOR_R, "number",String(COLOR_R_VALUE),"0","255");
+  msg += CreateFormElement("Green", ARG_COLOR_G, "number",String(COLOR_G_VALUE),"0","255");
+  msg += CreateFormElement("Blue", ARG_COLOR_B, "number",String(COLOR_B_VALUE),"0","255");
+  msg += CreateFormElement("X Position", ARG_XPOS, "number",String(XPOS_VALUE),"","");
+  msg += CreateFormElement("Y Position", ARG_YPOS, "number",String(YPOS_VALUE),"","");
   msg += HTML_BR;
-  msg += CreateFormElement("Sumbit", "submit", "submit" , "", "", "");
+  msg += CreateFormElement("Submit", "submit", "submit" , "submit", "", "");
+  msg += "</form>";
   msg += HTML_BOTTOM;
   server.send(200,"text/html", msg);
 }
@@ -262,21 +263,11 @@ void handleSet(){
     return;
   }
 
-  String result = "";
+  String result = "Result:\n===========================================================\n";
   
   if(server.hasArg(ARG_TEXT)){
     TEXT_VALUE = GetArgValue(ARG_TEXT);
     result += CreateSetMsg(ARG_TEXT, TEXT_VALUE); 
-  }
-  if(server.hasArg(ARG_SCROLL)){
-    String value = GetArgValue(ARG_SCROLL); 
-    if(isNumeric(value)){
-      int number = value.toInt();
-      SCROLL_VALUE = number >= 1 ? 1 : 0;
-      result += CreateSetMsg(ARG_SCROLL, String(SCROLL_VALUE)); 
-    }else{
-      result += CreateNotSetError(ARG_SCROLL, value);
-    }
   }
   if(server.hasArg(ARG_TEXT_SIZE)){
     String value = GetArgValue(ARG_TEXT_SIZE); 
@@ -342,18 +333,11 @@ void handleSet(){
       result += CreateNotSetError(ARG_YPOS, value);
     }
   }
-  if(server.hasArg(ARG_WRAP)){
-    String value = GetArgValue(ARG_WRAP); 
-    if(isNumeric(value)){
-      int number = value.toInt();
-      WRAP_VALUE = number >= 1;
-      result += CreateSetMsg(ARG_WRAP, String(WRAP_VALUE)); 
-    }else{
-      result += CreateNotSetError(ARG_WRAP, value);
-    }
-  }
-  
-  server.send(200, "text/plain", "Result\n" + result);
+  WRAP_VALUE = server.hasArg(ARG_WRAP);
+  result += CreateSetMsg(ARG_WRAP, String(WRAP_VALUE)); 
+  SCROLL_VALUE = server.hasArg(ARG_WRAP);
+  result += CreateSetMsg(ARG_WRAP, String(SCROLL_VALUE)); 
+  server.send(200, "text/plain", result);
 }
 void handleHelp(){
   server.send(200, "text/plain", "this is the help page.\n comming soon...");
