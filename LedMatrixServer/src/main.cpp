@@ -72,7 +72,7 @@ Ticker ticker;
 #define MATRIX_HEIGHT 32
 
 PxMATRIX display(MATRIX_WIDTH,MATRIX_HEIGHT,P_LAT, P_OE,P_A,P_B,P_C,P_D);
-
+const int16_t ButtonPressedResetTime = 10000; //10sec
 
 /*
 ================================
@@ -168,6 +168,23 @@ String CreateFormElement(String name,String id, String type, String placeholder,
   result.replace("{max}",max);
   result += HTML_BR;
   return result;
+}
+void CheckResetButton(){
+  long start = millis();
+  long end = start;
+  while(analogRead(A0) > 1000){
+    Serial.println("button is down");
+    end = millis();
+    if(end - start > ButtonPressedResetTime){
+      ResetWifi();
+    }  
+  }
+}
+void ResetWifi(){
+  wifiManager.resetSettings();
+  wifiManager.erase();
+  delay(3000);
+  ESP.restart();
 }
 /*
 ================================
@@ -343,9 +360,7 @@ void handleHelp(){
 }
 void handleResetWifi(){
   server.send(200, "text/plain", "Restarting...");
-  wifiManager.resetSettings();
-  delay(3000);
-  ESP.restart();
+  ResetWifi();
 }
 
 /*
@@ -415,5 +430,6 @@ void loop(void) {
   server.handleClient();
   MDNS.update();
   display_text();
-
+  CheckResetButton();
+  delay(100);
 }
