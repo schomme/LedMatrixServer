@@ -197,14 +197,13 @@ void CheckResetButton(){
 void handleRoot(); //declared to use in EndPoints. Definition below
 void handleSet();
 void handleInput();
-void handleHelp();
 void handleResetWifi();
 
-EndPoint ep_root("/", "Home", handleRoot, "Home site.");
-EndPoint ep_set("/set", "Setter", handleSet, "........................TODO.......");
-EndPoint ep_input("/input", "Input", handleInput, "........................TODO.......");
-EndPoint ep_help("/help", "Help", handleHelp, "........................TODO.......");
-EndPoint ep_wifi("/resetwifi", "ResetWifi", handleResetWifi, "........................TODO.......");
+EndPoint ep_root("/", "Home", handleRoot);
+EndPoint ep_set("/set", "Setter", handleSet);
+EndPoint ep_input("/input", "Input", handleInput);
+EndPoint ep_help("https://github.com/schomme/LedMatrixServer", "Help", NULL);
+EndPoint ep_wifi("/resetwifi", "ResetWifi", handleResetWifi);
 
 /*
 ================================
@@ -353,9 +352,7 @@ void handleSet(){
   result += CreateSetMsg(ARG_SCROLL, String(SCROLL_VALUE)); 
   server.send(200, "text/plain", result);
 }
-void handleHelp(){
-  server.send(200, "text/plain", "this is the help page.\n comming soon...");
-}
+
 void handleResetWifi(){
   server.send(200, "text/plain", "Restarting...");
   ResetWifi();
@@ -390,7 +387,6 @@ void setupServer(){
   server.on(ep_root.path, ep_root.handler);
   server.on(ep_set.path, ep_set.handler);
   server.on(ep_input.path, ep_input.handler);
-  server.on(ep_help.path, ep_help.handler);
   server.on(ep_wifi.path, ep_wifi.handler);
 
   Serial.println("HTTP server started");

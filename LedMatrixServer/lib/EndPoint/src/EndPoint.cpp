@@ -1,11 +1,10 @@
 #include "Arduino.h"
 #include "EndPoint.h"
 
-EndPoint::EndPoint(String inPath, String inName, std::function<void(void)> inHandler, String inHelp){
+EndPoint::EndPoint(String inPath, String inName, std::function<void(void)> inHandler){
     path = inPath;
     name = inName;
     handler = inHandler;
-    help = inHelp;  
 }
 String EndPoint::CreateLink(){
   String form1 = "<form action=\"";

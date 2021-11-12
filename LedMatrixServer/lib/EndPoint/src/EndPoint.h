@@ -6,10 +6,9 @@
 
     class EndPoint{
         public:
-            EndPoint(String inPath, String inName, std::function<void(void)> inHandler, String inHelp);
+            EndPoint(String inPath, String inName, std::function<void(void)> inHandler);
             String path;
             String name;
-            String help;
             std::function<void(void)> handler;
             String CreateLink();
     };
