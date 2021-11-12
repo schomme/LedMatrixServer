@@ -54,6 +54,8 @@ uint16_t YPOS_VALUE = 0;
 uint8_t SIZE_VALUE = 1;
 #define ARG_WRAP "wrap"
 bool WRAP_VALUE = true;
+#define ARG_BRIGHTNESS "brightness"
+uint8_t BRIGHTNESS_VALUE = 255;
 
 String parameters[9] = {ARG_TEXT, ARG_SCROLL, ARG_COLOR_R, ARG_COLOR_G, ARG_COLOR_B, ARG_XPOS, ARG_YPOS, ARG_TEXT_SIZE, ARG_WRAP};
 
@@ -110,7 +112,6 @@ void scroll_text(uint8_t ypos, unsigned long scroll_delay, String text, uint8_t 
       yield();
       delay(scroll_delay/5);
       yield();
-
     }
 }
 void display_text(){
@@ -120,6 +121,7 @@ void display_text(){
   display.setCursor(XPOS_VALUE,YPOS_VALUE);
   display.setTextColor(display.color565(COLOR_R_VALUE, COLOR_G_VALUE, COLOR_B_VALUE));
   display.setTextSize(SIZE_VALUE);
+  display.setBrightness(BRIGHTNESS_VALUE);
 
   if(SCROLL_VALUE){
     scroll_text(YPOS_VALUE, 50, TEXT_VALUE, 0);
@@ -199,7 +201,7 @@ void handleHelp();
 void handleResetWifi();
 
 EndPoint ep_root("/", "Home", handleRoot, "Home site.");
-EndPoint ep_set("/set", "Value Setter", handleSet, ".....................TODO.......");
+EndPoint ep_set("/set", "Setter", handleSet, "........................TODO.......");
 EndPoint ep_input("/input", "Input", handleInput, "........................TODO.......");
 EndPoint ep_help("/help", "Help", handleHelp, "........................TODO.......");
 EndPoint ep_wifi("/resetwifi", "ResetWifi", handleResetWifi, "........................TODO.......");
@@ -213,9 +215,7 @@ EndPoint ep_wifi("/resetwifi", "ResetWifi", handleResetWifi, "..................
 void handleRoot() {
   String m = "";
   m += HTML_HEAD;
-
   m += ep_root.CreateLink() + HTML_BR;
-  m += ep_set.CreateLink() + HTML_BR;
   m += ep_input.CreateLink() + HTML_BR;
   m += ep_help.CreateLink() + HTML_BR;
   m += HTML_BR + ep_wifi.CreateLink();
@@ -251,6 +251,8 @@ void handleInput(){
   msg += CreateFormElement("Blue", ARG_COLOR_B, "number",String(COLOR_B_VALUE),"0","255");
   msg += CreateFormElement("X Position", ARG_XPOS, "number",String(XPOS_VALUE),"","");
   msg += CreateFormElement("Y Position", ARG_YPOS, "number",String(YPOS_VALUE),"","");
+  msg += CreateFormElement("Brightness", ARG_BRIGHTNESS, "number", String(BRIGHTNESS_VALUE),"0","255");
+
   msg += HTML_BR;
   msg += CreateFormElement("Submit", "submit", "submit" , "submit", "", "");
   msg += "</form>";
@@ -333,10 +335,22 @@ void handleSet(){
       result += CreateNotSetError(ARG_YPOS, value);
     }
   }
+
+  if(server.hasArg(ARG_BRIGHTNESS)){
+    String value = GetArgValue(ARG_BRIGHTNESS); 
+    if(isNumeric(value)){
+      int number = value.toInt();
+      BRIGHTNESS_VALUE = MapColor(number);
+      result += CreateSetMsg(ARG_BRIGHTNESS, String(BRIGHTNESS_VALUE)); 
+    }else{
+      result += CreateNotSetError(ARG_BRIGHTNESS, value);
+    }
+  }
+
   WRAP_VALUE = server.hasArg(ARG_WRAP);
   result += CreateSetMsg(ARG_WRAP, String(WRAP_VALUE)); 
-  SCROLL_VALUE = server.hasArg(ARG_WRAP);
-  result += CreateSetMsg(ARG_WRAP, String(SCROLL_VALUE)); 
+  SCROLL_VALUE = server.hasArg(ARG_SCROLL);
+  result += CreateSetMsg(ARG_SCROLL, String(SCROLL_VALUE)); 
   server.send(200, "text/plain", result);
 }
 void handleHelp(){
