@@ -46,8 +46,8 @@ Link to this Github repository.
 | `xpos` | `int` | X-Position |
 | `ypos` | `int` | Y-Position |
 | `brightness` | `int` | brightness (0-255) |
-| `wrap` | `int` | auto line breaks (0 or 1) |
-| `scroll` | `int` | text runs from right to left (0 or 1) |
+| `wrap` | `int` | auto line breaks. value doesn't matter. |
+| `scroll` | `int` | text runs from right to left. value doesn't matter. |
 
 
 
