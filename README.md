@@ -50,10 +50,5 @@ Link to this Github repository.
 | `scroll` | `int` | text runs from right to left. value doesn't matter. |
 
 
-
-## Optimizations
-When the `scroll` parameter is set to 1, the text moves from right to left forever.
-The X-Position should be reset to start from the right again.
-
 ## Usage
 Simple python script to collect data (e.g. weather data) an send it with a http get request to the ESP in  regular intervals (cron).
