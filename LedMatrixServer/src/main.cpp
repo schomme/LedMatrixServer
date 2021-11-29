@@ -41,15 +41,15 @@ String TEXT_VALUE = "";
 #define ARG_SCROLL "scroll"
 bool SCROLL_VALUE = false;
 #define ARG_COLOR_R "color_R"
-uint8_t COLOR_R_VALUE = 255;
+uint8_t  COLOR_R_VALUE = 255;
 #define ARG_COLOR_G "color_G"
 uint8_t COLOR_G_VALUE = 0;
 #define ARG_COLOR_B "color_B"
 uint8_t COLOR_B_VALUE = 0;
 #define ARG_XPOS "xpos"
-uint16_t XPOS_VALUE = 0;
+int XPOS_VALUE = 0;
 #define ARG_YPOS "ypos"
-uint16_t YPOS_VALUE = 0;
+uint8_t YPOS_VALUE = 0;
 #define ARG_TEXT_SIZE "size"
 uint8_t SIZE_VALUE = 1;
 #define ARG_WRAP "wrap"
@@ -98,22 +98,7 @@ String GetArgValue(String key){
   }
   return "";
 }
-void scroll_text(uint8_t ypos, unsigned long scroll_delay, String text, uint8_t color)
-{
-    uint16_t text_length = text.length();
-    uint8_t characterwidth = 5;
-    for (int xpos=MATRIX_WIDTH; xpos>-(MATRIX_WIDTH+text_length*characterwidth); xpos--)
-    {
-      display.setTextColor(display.color565(COLOR_R_VALUE,COLOR_G_VALUE, COLOR_B_VALUE));
-      display.clearDisplay();
-      display.setCursor(xpos,ypos);
-      display.println(text);
-      delay(scroll_delay);
-      yield();
-      delay(scroll_delay/5);
-      yield();
-    }
-}
+
 void display_text(){
 
   display.clearDisplay();
@@ -124,10 +109,34 @@ void display_text(){
   display.setBrightness(BRIGHTNESS_VALUE);
 
   if(SCROLL_VALUE){
-    scroll_text(YPOS_VALUE, 50, TEXT_VALUE, 0);
-  }else{
-    display.print(TEXT_VALUE);
+    int characterwidth = 6*SIZE_VALUE;
+    int text_length = TEXT_VALUE.length();
+    int step_width = 1;
+
+    String DEBUGMSG = "TextLength: ";
+    DEBUGMSG += String(text_length);
+    DEBUGMSG += "   XPOS: ";
+    DEBUGMSG += String(XPOS_VALUE);
+    DEBUGMSG += "   Max Pixel width: ";
+    DEBUGMSG += String(text_length*characterwidth);
+    DEBUGMSG += "   MatrixWidth: ";
+    DEBUGMSG += String(MATRIX_WIDTH);
+    Serial.println(DEBUGMSG);
+
+
+
+
+
+    if(XPOS_VALUE + text_length*characterwidth <= 0){
+      XPOS_VALUE = MATRIX_WIDTH;
+      Serial.println("Resetting XPOS to " + String(XPOS_VALUE) );
+
+    }
+
+    XPOS_VALUE -= step_width;
   }
+  display.print(TEXT_VALUE);
+
 }
 void display_ticker()
 {
